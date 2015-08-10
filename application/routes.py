@@ -1,11 +1,13 @@
 from application import app
-from flask import Response, request, url_for, send_from_directory
+from flask import Response, request, url_for, send_from_directory, send_file
 import psycopg2
 import psycopg2.extras
 import json
 import logging
 import os
-
+from io import BytesIO
+from PIL import Image
+from PIL import ImageEnhance
 # Mock document management system.
 # A document will be some metadata, plus images of each of the pages of the document
 # Images will be stored in whatever format they're sent (in legacy world: TIFF & JPEG)
@@ -136,23 +138,39 @@ def delete_document(doc_no):
     return Response(status=501)
 
 
+def serve_image(image):
+    sio = BytesIO()
+    image.save(sio, 'JPEG', quality=70)
+    sio.seek(0)
+    return send_file(sio, mimetype='image/jpeg')
+
 @app.route('/document/<int:doc_no>/image/<image_index>', methods=["GET"])
 def get_image(doc_no, image_index):
     extensions = ['jpeg', 'tiff', 'pdf']
+    modify = False
+
+    if 'contrast' in request.args:
+        contrast = int(request.args.get('contrast')) / 100
+        modify = True
 
     filename = 'img{}_{}'.format(doc_no, image_index)
     logging.info("Seek " + filename)
 
     for extn in extensions:
         if os.path.isfile("{}{}.{}".format(app.config['IMAGE_DIRECTORY'], filename, extn)):
-            filename += ".tiff"
+            filename += "." + extn
             break
 
     if not os.path.isfile("{}{}".format(app.config['IMAGE_DIRECTORY'], filename)):
         return Response(status=404)
 
-    logging.info("Found: " + filename)
-    return send_from_directory(app.config["IMAGE_DIRECTORY"], filename)
+    if not modify:
+        logging.info("Found: " + filename)
+        return send_from_directory(app.config["IMAGE_DIRECTORY"], filename)
+    else:
+        image = Image.open("{}{}".format(app.config['IMAGE_DIRECTORY'], filename))
+        adjuster = ImageEnhance.Contrast(image)
+        return serve_image(adjuster.enhance(contrast))
 
 
 @app.route('/document/<int:doc_no>/image/<image_index>', methods=["PUT"])
