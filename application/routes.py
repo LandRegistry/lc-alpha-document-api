@@ -65,6 +65,16 @@ def set_imagepaths(doc_no, image_paths):
     complete(cursor)
 
 
+def get_extension(mimetype):
+    if mimetype == "image/tiff":
+        return 'tiff'
+    elif mimetype == 'image/jpeg':
+        return 'jpeg'
+    elif mimetype == 'application/pdf':
+        return 'pdf'
+    return None
+
+
 @app.route('/', methods=["GET"])
 def index():
     return Response(status=200)
@@ -128,13 +138,17 @@ def delete_document(doc_no):
 
 @app.route('/document/<int:doc_no>/image/<image_index>', methods=["GET"])
 def get_image(doc_no, image_index):
+    extensions = ['jpeg', 'tiff', 'pdf']
+
     filename = 'img{}_{}'.format(doc_no, image_index)
     logging.info("Seek " + filename)
-    if os.path.isfile("{}{}.tiff".format(app.config['IMAGE_DIRECTORY'], filename)):
-        filename += ".tiff"
-    elif os.path.isfile("{}{}.jpeg".format(app.config['IMAGE_DIRECTORY'], filename)):
-        filename += ".jpeg"
-    else:
+
+    for extn in extensions:
+        if os.path.isfile("{}{}.{}".format(app.config['IMAGE_DIRECTORY'], filename, extn)):
+            filename += ".tiff"
+            break
+
+    if not os.path.isfile("{}{}".format(app.config['IMAGE_DIRECTORY'], filename)):
         return Response(status=404)
 
     logging.info("Found: " + filename)
@@ -144,15 +158,13 @@ def get_image(doc_no, image_index):
 @app.route('/document/<int:doc_no>/image/<image_index>', methods=["PUT"])
 def put_image(doc_no, image_index):
     # set or replace an image
-    if request.headers['Content-Type'] != "image/tiff" and request.headers['Content-Type'] != 'image/jpeg':
+    if request.headers['Content-Type'] != "image/tiff" and \
+            request.headers['Content-Type'] != 'image/jpeg' and \
+            request.headers['Content-Type'] != 'application/pdf':
         logging.error('Content-Type is not a valid image format')
         return Response(status=415)
 
-    if request.headers['Content-Type'] == "image/tiff":
-        extn = 'tiff'
-    else:
-        extn = 'jpeg'
-
+    extn = get_extension(request.headers['Content-Type'])
     filename = '{}img{}_{}.{}'.format(app.config['IMAGE_DIRECTORY'], doc_no, image_index, extn)
     file = open(filename, 'wb')
     file.write(request.data)
