@@ -52,6 +52,8 @@ def get_imagepaths(doc_no):
                        "id": doc_no
                    })
     rows = cursor.fetchall()
+    if len(rows) == 0:
+        return None
     data = rows[0][0]
     complete(cursor)
     return data
@@ -135,6 +137,13 @@ def change_document(doc_no):
 @app.route('/document/<int:doc_no>', methods=["DELETE"])
 def delete_document(doc_no):
     # delete an entire document and its associated images
+    # images = get_imagepaths(doc_no)
+    # for image in images:
+    #     for extn in extensions:
+    #         if os.path.isfile("{}{}.{}".format(app.config['IMAGE_DIRECTORY'], filename, extn)):
+    #             filename += "." + extn
+    #             break
+
     return Response(status=501)
 
 
@@ -144,31 +153,31 @@ def serve_image(image):
     sio.seek(0)
     return send_file(sio, mimetype='image/jpeg')
 
-@app.route('/document/<int:doc_no>/image/<image_index>', methods=["GET"])
+@app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["GET"])
 def get_image(doc_no, image_index):
-    extensions = ['jpeg', 'tiff', 'pdf']
     modify = False
 
     if 'contrast' in request.args:
         contrast = int(request.args.get('contrast')) / 100
         modify = True
 
-    filename = 'img{}_{}'.format(doc_no, image_index)
-    logging.info("Seek " + filename)
+    images = get_imagepaths(doc_no)
 
-    for extn in extensions:
-        if os.path.isfile("{}{}.{}".format(app.config['IMAGE_DIRECTORY'], filename, extn)):
-            filename += "." + extn
-            break
-
-    if not os.path.isfile("{}{}".format(app.config['IMAGE_DIRECTORY'], filename)):
+    if images is None or image_index < 1 or image_index > len(images):
         return Response(status=404)
+
+    filename = images[image_index - 1]
+    logging.info("Seek " + filename)
+    filename = os.path.join(app.config['IMAGE_DIRECTORY'], filename)
+
+    if not os.path.isfile(filename):
+        return Response(status=500)
 
     if not modify:
         logging.info("Found: " + filename)
-        return send_from_directory(app.config["IMAGE_DIRECTORY"], filename)
+        return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
     else:
-        image = Image.open("{}{}".format(app.config['IMAGE_DIRECTORY'], filename))
+        image = Image.open(filename)
         adjuster = ImageEnhance.Contrast(image)
         return serve_image(adjuster.enhance(contrast))
 
@@ -190,10 +199,9 @@ def put_image(doc_no, image_index):
 
     # Record image details in DB
     images = get_imagepaths(doc_no)
-    # new_url = url_for('get_image', doc_no=doc_no, image_index=image_index)
-    image = str(image_index)
+    image = filename#str(image_index)
     if images.count(image) == 0:
-        images.append(image)
+        images.append(os.path.basename(image))
         set_imagepaths(doc_no, images)
     # Else we don't need to do anything
 
