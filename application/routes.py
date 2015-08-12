@@ -38,8 +38,8 @@ def get_metadata(doc_no):
     else:
         data = rows[0][0]
         data["images"] = []
-        for key in rows[0][1]:
-            data["images"].append(url_for('get_image', doc_no=doc_no, image_index=key))
+        for idx, value in enumerate(rows[0][1]):
+            data["images"].append(url_for('get_image', doc_no=doc_no, image_index=idx + 1))
 
     complete(cursor)
     return data
@@ -136,15 +136,18 @@ def change_document(doc_no):
 
 @app.route('/document/<int:doc_no>', methods=["DELETE"])
 def delete_document(doc_no):
-    # delete an entire document and its associated images
-    # images = get_imagepaths(doc_no)
-    # for image in images:
-    #     for extn in extensions:
-    #         if os.path.isfile("{}{}.{}".format(app.config['IMAGE_DIRECTORY'], filename, extn)):
-    #             filename += "." + extn
-    #             break
+    images = get_imagepaths(doc_no)
+    if images is None:
+        return Response(status=404)
 
-    return Response(status=501)
+    for image in images:
+        filename = os.path.join(app.config['IMAGE_DIRECTORY'], image)
+        os.remove(filename)
+
+    cursor = connect()
+    cursor.execute("delete from documents where id=%(id)s", {"id": doc_no})
+    complete(cursor)
+    return Response(status=200)
 
 
 def serve_image(image):
@@ -182,9 +185,33 @@ def get_image(doc_no, image_index):
         return serve_image(adjuster.enhance(contrast))
 
 
-@app.route('/document/<int:doc_no>/image/<image_index>', methods=["PUT"])
+@app.route('/document/<int:doc_no>/image', methods=['POST'])
+def add_image(doc_no):
+    # add an image
+    if request.headers['Content-Type'] != "image/tiff" and \
+            request.headers['Content-Type'] != 'image/jpeg' and \
+            request.headers['Content-Type'] != 'application/pdf':
+        logging.error('Content-Type is not a valid image format')
+        return Response(status=415)
+
+    images = get_imagepaths(doc_no)
+    if images is None:
+        return Response(status=404)
+
+    extn = get_extension(request.headers['Content-Type'])
+    filename = '{}img{}_{}.{}'.format(app.config['IMAGE_DIRECTORY'], doc_no, len(images) + 1, extn)
+    file = open(filename, 'wb')
+    file.write(request.data)
+    file.close()
+    images.append(os.path.basename(filename))
+    set_imagepaths(doc_no, images)
+
+    return Response(json.dumps(images), status=201)
+
+
+@app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["PUT"])
 def put_image(doc_no, image_index):
-    # set or replace an image
+    # replace an image
     if request.headers['Content-Type'] != "image/tiff" and \
             request.headers['Content-Type'] != 'image/jpeg' and \
             request.headers['Content-Type'] != 'application/pdf':
@@ -199,12 +226,10 @@ def put_image(doc_no, image_index):
 
     # Record image details in DB
     images = get_imagepaths(doc_no)
-    image = filename#str(image_index)
-    if images.count(image) == 0:
-        images.append(os.path.basename(image))
-        set_imagepaths(doc_no, images)
-    # Else we don't need to do anything
-
+    if images is None or image_index < 1 or image_index > len(images):
+        return Response(status=404)
+    images[image_index-1] = os.path.basename(filename)
+    set_imagepaths(doc_no, images)
     return Response(status=201)
 
 
