@@ -7,7 +7,15 @@ class Config(object):
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    DATABASE_NAME = 'docstore'
+    DATABASE_USER = 'landcharges'
+    DATABASE_PASSWORD = 'lcalpha'
+    DATABASE_HOST = 'localhost'
+    IMAGE_DIRECTORY = '/home/vagrant/'
 
 
 class PreviewConfig(Config):
-    pass
+    DATABASE_NAME = 'docstore'
+    DATABASE_USER = 'landcharges'
+    DATABASE_PASSWORD = 'lcalpha'
+    DATABASE_HOST = 'localhost'
