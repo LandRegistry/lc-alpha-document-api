@@ -17,6 +17,9 @@ def connect(cursor_factory=None):
     connection = psycopg2.connect("dbname='{}' user='{}' host='{}' password='{}'".format(
         app.config['DATABASE_NAME'], app.config['DATABASE_USER'], app.config['DATABASE_HOST'],
         app.config['DATABASE_PASSWORD']))
+
+    print(psycopg2.connect)
+    print(connection)
     return connection.cursor(cursor_factory=cursor_factory)
 
 
@@ -93,12 +96,15 @@ def create_documents():
 
     data = request.get_json(force=True)
     cursor = connect()
+    print(cursor)
     cursor.execute("insert into documents (metadata, image_paths) values ( %(meta)s, %(paths)s ) returning id",
                    {
                        "meta": json.dumps(data),
                        "paths": "[]"
                    })
-    doc_id = cursor.fetchone()[0]
+    res = cursor.fetchone()
+    print(res)
+    doc_id = res[0]
     complete(cursor)
     return Response(json.dumps({"id": doc_id}), status=201)
 
@@ -128,6 +134,8 @@ def change_document(doc_no):
                    })
     rowcount = cursor.rowcount
     complete(cursor)
+    print("RC")
+    print(rowcount)
     if rowcount == 0:
         return Response(status=404)
 
@@ -226,15 +234,23 @@ def put_image(doc_no, image_index):
 
     # Record image details in DB
     images = get_imagepaths(doc_no)
-    if images is None or image_index < 1 or image_index > len(images):
+    if images is None or image_index < 1 or image_index >= len(images):
         return Response(status=404)
     images[image_index-1] = os.path.basename(filename)
     set_imagepaths(doc_no, images)
-    return Response(status=201)
+    return Response(json.dumps(images), status=201)
 
 
-@app.route('/document/<int:doc_no>/image/<image_index>', methods=["DELETE"])
+@app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["DELETE"])
 def delete_image(doc_no, image_index):
     # delete an image from the document
-    return Response(status=501)
+    images = get_imagepaths(doc_no)
+    if images is None or image_index < 1 or image_index >= len(images):
+        return Response(status=404)
+
+    filename = os.path.join(app.config['IMAGE_DIRECTORY'], images[image_index-1])
+    os.remove(filename)
+    del(images[image_index-1])
+    set_imagepaths(doc_no, images)
+    return Response(json.dumps(images), status=200)
 
