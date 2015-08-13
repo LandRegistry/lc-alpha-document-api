@@ -17,6 +17,9 @@ def connect(cursor_factory=None):
     connection = psycopg2.connect("dbname='{}' user='{}' host='{}' password='{}'".format(
         app.config['DATABASE_NAME'], app.config['DATABASE_USER'], app.config['DATABASE_HOST'],
         app.config['DATABASE_PASSWORD']))
+
+    print(psycopg2.connect)
+    print(connection)
     return connection.cursor(cursor_factory=cursor_factory)
 
 
@@ -38,8 +41,8 @@ def get_metadata(doc_no):
     else:
         data = rows[0][0]
         data["images"] = []
-        for key in rows[0][1]:
-            data["images"].append(url_for('get_image', doc_no=doc_no, image_index=key))
+        for idx, value in enumerate(rows[0][1]):
+            data["images"].append(url_for('get_image', doc_no=doc_no, image_index=idx + 1))
 
     complete(cursor)
     return data
@@ -52,6 +55,8 @@ def get_imagepaths(doc_no):
                        "id": doc_no
                    })
     rows = cursor.fetchall()
+    if len(rows) == 0:
+        return None
     data = rows[0][0]
     complete(cursor)
     return data
@@ -91,12 +96,15 @@ def create_documents():
 
     data = request.get_json(force=True)
     cursor = connect()
+    print(cursor)
     cursor.execute("insert into documents (metadata, image_paths) values ( %(meta)s, %(paths)s ) returning id",
                    {
                        "meta": json.dumps(data),
                        "paths": "[]"
                    })
-    doc_id = cursor.fetchone()[0]
+    res = cursor.fetchone()
+    print(res)
+    doc_id = res[0]
     complete(cursor)
     return Response(json.dumps({"id": doc_id}), status=201)
 
@@ -126,6 +134,8 @@ def change_document(doc_no):
                    })
     rowcount = cursor.rowcount
     complete(cursor)
+    print("RC")
+    print(rowcount)
     if rowcount == 0:
         return Response(status=404)
 
@@ -134,8 +144,18 @@ def change_document(doc_no):
 
 @app.route('/document/<int:doc_no>', methods=["DELETE"])
 def delete_document(doc_no):
-    # delete an entire document and its associated images
-    return Response(status=501)
+    images = get_imagepaths(doc_no)
+    if images is None:
+        return Response(status=404)
+
+    for image in images:
+        filename = os.path.join(app.config['IMAGE_DIRECTORY'], image)
+        os.remove(filename)
+
+    cursor = connect()
+    cursor.execute("delete from documents where id=%(id)s", {"id": doc_no})
+    complete(cursor)
+    return Response(status=200)
 
 
 def serve_image(image):
@@ -144,38 +164,62 @@ def serve_image(image):
     sio.seek(0)
     return send_file(sio, mimetype='image/jpeg')
 
-@app.route('/document/<int:doc_no>/image/<image_index>', methods=["GET"])
+@app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["GET"])
 def get_image(doc_no, image_index):
-    extensions = ['jpeg', 'tiff', 'pdf']
     modify = False
 
     if 'contrast' in request.args:
         contrast = int(request.args.get('contrast')) / 100
         modify = True
 
-    filename = 'img{}_{}'.format(doc_no, image_index)
-    logging.info("Seek " + filename)
+    images = get_imagepaths(doc_no)
 
-    for extn in extensions:
-        if os.path.isfile("{}{}.{}".format(app.config['IMAGE_DIRECTORY'], filename, extn)):
-            filename += "." + extn
-            break
-
-    if not os.path.isfile("{}{}".format(app.config['IMAGE_DIRECTORY'], filename)):
+    if images is None or image_index < 1 or image_index > len(images):
         return Response(status=404)
+
+    filename = images[image_index - 1]
+    logging.info("Seek " + filename)
+    filename = os.path.join(app.config['IMAGE_DIRECTORY'], filename)
+
+    if not os.path.isfile(filename):
+        return Response(status=500)
 
     if not modify:
         logging.info("Found: " + filename)
-        return send_from_directory(app.config["IMAGE_DIRECTORY"], filename)
+        return send_from_directory(os.path.dirname(filename), os.path.basename(filename))
     else:
-        image = Image.open("{}{}".format(app.config['IMAGE_DIRECTORY'], filename))
+        image = Image.open(filename)
         adjuster = ImageEnhance.Contrast(image)
         return serve_image(adjuster.enhance(contrast))
 
 
-@app.route('/document/<int:doc_no>/image/<image_index>', methods=["PUT"])
+@app.route('/document/<int:doc_no>/image', methods=['POST'])
+def add_image(doc_no):
+    # add an image
+    if request.headers['Content-Type'] != "image/tiff" and \
+            request.headers['Content-Type'] != 'image/jpeg' and \
+            request.headers['Content-Type'] != 'application/pdf':
+        logging.error('Content-Type is not a valid image format')
+        return Response(status=415)
+
+    images = get_imagepaths(doc_no)
+    if images is None:
+        return Response(status=404)
+
+    extn = get_extension(request.headers['Content-Type'])
+    filename = '{}img{}_{}.{}'.format(app.config['IMAGE_DIRECTORY'], doc_no, len(images) + 1, extn)
+    file = open(filename, 'wb')
+    file.write(request.data)
+    file.close()
+    images.append(os.path.basename(filename))
+    set_imagepaths(doc_no, images)
+
+    return Response(json.dumps(images), status=201)
+
+
+@app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["PUT"])
 def put_image(doc_no, image_index):
-    # set or replace an image
+    # replace an image
     if request.headers['Content-Type'] != "image/tiff" and \
             request.headers['Content-Type'] != 'image/jpeg' and \
             request.headers['Content-Type'] != 'application/pdf':
@@ -190,18 +234,23 @@ def put_image(doc_no, image_index):
 
     # Record image details in DB
     images = get_imagepaths(doc_no)
-    # new_url = url_for('get_image', doc_no=doc_no, image_index=image_index)
-    image = str(image_index)
-    if images.count(image) == 0:
-        images.append(image)
-        set_imagepaths(doc_no, images)
-    # Else we don't need to do anything
-
-    return Response(status=201)
+    if images is None or image_index < 1 or image_index >= len(images):
+        return Response(status=404)
+    images[image_index-1] = os.path.basename(filename)
+    set_imagepaths(doc_no, images)
+    return Response(json.dumps(images), status=201)
 
 
-@app.route('/document/<int:doc_no>/image/<image_index>', methods=["DELETE"])
+@app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["DELETE"])
 def delete_image(doc_no, image_index):
     # delete an image from the document
-    return Response(status=501)
+    images = get_imagepaths(doc_no)
+    if images is None or image_index < 1 or image_index >= len(images):
+        return Response(status=404)
+
+    filename = os.path.join(app.config['IMAGE_DIRECTORY'], images[image_index-1])
+    os.remove(filename)
+    del(images[image_index-1])
+    set_imagepaths(doc_no, images)
+    return Response(json.dumps(images), status=200)
 
