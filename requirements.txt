@@ -13,3 +13,4 @@ responses==0.3.0
 alembic
 psycopg2==2.6
 pillow
+pytesseract
