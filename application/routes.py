@@ -8,6 +8,7 @@ import os
 from io import BytesIO
 from PIL import Image
 from PIL import ImageEnhance
+from application.ocr import recognise
 # Mock document management system.
 # A document will be some metadata, plus images of each of the pages of the document
 # Images will be stored in whatever format they're sent (in legacy world: TIFF & JPEG)
@@ -257,4 +258,12 @@ def delete_image(doc_no, image_index):
 
 @app.route('/document/<int:doc_no>/image/<int:image_index>/formtype', methods=["GET"])
 def recognise_form(doc_no, image_index):
-    return Response(json.dumps({"type": "WO(B)"}), status=200, mimetype='application/json')
+    images = get_imagepaths(doc_no)
+    if images is None or image_index < 1 or image_index > len(images):
+        return Response(status=404)
+
+    filename = images[image_index - 1]
+    filename = os.path.join(app.config['IMAGE_DIRECTORY'], filename)
+    formtype = recognise(filename)
+
+    return Response(json.dumps({"type": formtype}), status=200, mimetype='application/json')
