@@ -254,3 +254,7 @@ def delete_image(doc_no, image_index):
     set_imagepaths(doc_no, images)
     return Response(json.dumps(images), status=200)
 
+
+@app.route('/document/<int:doc_no>/image/<int:image_index>/formtype', methods=["GET"])
+def recognise_form(doc_no, image_index):
+    return Response(json.dumps({"type": "WOB"}), status=200, mimetype='application/json')
