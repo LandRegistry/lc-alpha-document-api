@@ -257,4 +257,4 @@ def delete_image(doc_no, image_index):
 
 @app.route('/document/<int:doc_no>/image/<int:image_index>/formtype', methods=["GET"])
 def recognise_form(doc_no, image_index):
-    return Response(json.dumps({"type": "WOB"}), status=200, mimetype='application/json')
+    return Response(json.dumps({"type": "WO(B)"}), status=200, mimetype='application/json')
