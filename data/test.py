@@ -53,6 +53,12 @@ image_data = [
         'options': [
             {'pattern': '.*WOB', 'result': 'WOB(Amend)'},
         ]
+    },
+    {
+        'bounds': [0.807124, 0.214727, 0.15457, 0.109264],
+        'options': [
+            {'pattern': 'PAB', 'result': 'PAB'},
+        ]
     }
 
 
@@ -61,12 +67,17 @@ devnull = open(os.devnull, 'w')
 
 
 files = os.listdir(".")
+c = 0
 for file in files:
     #(file)
     fn, ext = os.path.splitext(file)
     #print(ext)
     if ext != ".jpeg" and ext != '.png':
         continue
+
+    if fn != "img40_1":
+        continue
+
     #print("========================", file=sys.stderr)
     #print("Analyse " + file, file=sys.stderr)
     found = False
@@ -78,8 +89,12 @@ for file in files:
         height = int(image.height * item['bounds'][3])
         cropped = image.crop((left, top, left + width, top + height))
 
+        newfn = "crop" + str(c) + ".jpeg"
+        cropped.save(newfn)
+        c += 1
+
         text = image_to_string(cropped)
-        #print("    Text is: " + text, file=sys.stderr)
+        print("    Text is: " + text, file=sys.stderr)
 
         for option in item['options']:
             m = re.match(option['pattern'], text)

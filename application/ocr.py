@@ -51,6 +51,12 @@ image_data = [
         'options': [
             {'pattern': '.*WOB', 'result': 'WO(B) Amend'},
         ]
+    },
+    {
+        'bounds': [0.807124, 0.214727, 0.15457, 0.109264],
+        'options': [
+            {'pattern': 'PAB', 'result': 'PAB'},
+        ]
     }
 ]
 
