@@ -55,7 +55,7 @@ image_data = [
     {
         'bounds': [0.807124, 0.214727, 0.15457, 0.109264],
         'options': [
-            {'pattern': 'PAB', 'result': 'PAB'},
+            {'pattern': 'PAB', 'result': 'PA(B)'},
         ]
     }
 ]
