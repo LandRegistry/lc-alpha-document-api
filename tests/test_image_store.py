@@ -31,7 +31,7 @@ mock_get_metadata = {
     })
 }
 
-mock_images_row = [[["img9_1.jpeg", "img9_2.jpeg", "img9_3.jpeg"]]]
+mock_images_row = [[["img30_1.jpeg", "img33_1.jpeg", "img36_1.jpeg"]]]
 
 mock_get_imagepaths = {
     'return_value': mock.Mock(**{
@@ -111,14 +111,14 @@ class TestImageStore:
         response = self.app.get('/document/9/image/2')
         sha1 = hashlib.sha1(response.data).hexdigest()
         assert response.status_code == 200
-        assert sha1 == 'bf8fadb98a9da3763ffd4b27bf5a535d3b5f5750'  # use sha1sum <file>
+        assert sha1 == '2bdc21774ffe3ce93e262f896fa8b1877e01d62b'  # use sha1sum <file>
 
     @mock.patch('psycopg2.connect', **mock_get_imagepaths)
     def test_retrieve_image_adjust_contrast(self, mock_connect):
         response = self.app.get('/document/9/image/2?contrast=50')
         sha1 = hashlib.sha1(response.data).hexdigest()
         assert response.status_code == 200
-        assert sha1 == '4dab7b2e748f4f5abd6486c977f970faf5d5c83a'
+        assert sha1 == 'b20b72a7f9dfcbe1fa19c3a3f4d1db55603463e6'
 
     @mock.patch('psycopg2.connect', **mock_fetch_empty_array)
     def test_retrieve_image_not_found(self, mock_connect):
