@@ -72,8 +72,8 @@ def recognise(filename):
         text = image_to_string(cropped)
 
         for option in item['options']:
-            m = re.match(option['pattern'], text)
-            if m is not None:
+            match = re.match(option['pattern'], text)
+            if match is not None:
                 return option['result']
 
     return "Unknown"

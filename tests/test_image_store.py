@@ -47,6 +47,7 @@ mock_get_imagepaths_2 = {
     })
 }
 
+
 class TestImageStore:
     def setup_method(self, method):
         self.app = app.test_client()
