@@ -165,6 +165,7 @@ def serve_image(image):
     sio.seek(0)
     return send_file(sio, mimetype='image/jpeg')
 
+
 @app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["GET"])
 def get_image(doc_no, image_index):
     modify = False
@@ -237,7 +238,7 @@ def put_image(doc_no, image_index):
     images = get_imagepaths(doc_no)
     if images is None or image_index < 1 or image_index >= len(images):
         return Response(status=404)
-    images[image_index-1] = os.path.basename(filename)
+    images[image_index - 1] = os.path.basename(filename)
     set_imagepaths(doc_no, images)
     return Response(json.dumps(images), status=201)
 
@@ -249,16 +250,20 @@ def delete_image(doc_no, image_index):
     if images is None or image_index < 1 or image_index >= len(images):
         return Response(status=404)
 
-    filename = os.path.join(app.config['IMAGE_DIRECTORY'], images[image_index-1])
+    filename = os.path.join(app.config['IMAGE_DIRECTORY'], images[image_index - 1])
     os.remove(filename)
-    del(images[image_index-1])
+    del(images[image_index - 1])
     set_imagepaths(doc_no, images)
     return Response(json.dumps(images), status=200)
 
 
 @app.route('/document/<int:doc_no>/image/<int:image_index>/formtype', methods=["GET"])
 def recognise_form(doc_no, image_index):
+    print("============")
+    print(os.environ['PATH'])
+    print(os.environ['PATH'])
     images = get_imagepaths(doc_no)
+    print(images)
     if images is None or image_index < 1 or image_index > len(images):
         return Response(status=404)
 

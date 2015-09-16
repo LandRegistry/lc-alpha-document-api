@@ -69,17 +69,17 @@ devnull = open(os.devnull, 'w')
 files = os.listdir(".")
 c = 0
 for file in files:
-    #(file)
+    # (file)
     fn, ext = os.path.splitext(file)
-    #print(ext)
+    # print(ext)
     if ext != ".jpeg" and ext != '.png':
         continue
 
     if fn != "img40_1":
         continue
 
-    #print("========================", file=sys.stderr)
-    #print("Analyse " + file, file=sys.stderr)
+    # print("========================", file=sys.stderr)
+    # print("Analyse " + file, file=sys.stderr)
     found = False
     image = Image.open(file)
     for item in image_data:
@@ -106,18 +106,3 @@ for file in files:
             break
     if not found:
         print("Image " + file + " is a mystery", file=sys.stderr)
-
-
-# image = Image.open(filename)
-# left = int(image.width * 0.280449)
-# top = int(image.height * 0.034227)
-# width = int(image.width * 0.200321)
-# height = int(image.height * 0.06275)
-#
-# image = image.crop((left, top, left + width, top + height))
-#
-# # image = image.crop((290, 55, 520, 145))
-# image.save("crop.jpeg")
-# text = image_to_string(image)
-#
-# print(text)
