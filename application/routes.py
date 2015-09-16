@@ -42,8 +42,8 @@ def get_metadata(doc_no):
     else:
         data = rows[0][0]
         data["images"] = []
-        for idx, value in enumerate(rows[0][1]):
-            data["images"].append(url_for('get_image', doc_no=doc_no, image_index=idx + 1))
+        for item in enumerate(rows[0][1]):
+            data["images"].append(url_for('get_image', doc_no=doc_no, image_index=item[0] + 1))
 
     complete(cursor)
     return data
@@ -252,7 +252,7 @@ def delete_image(doc_no, image_index):
 
     filename = os.path.join(app.config['IMAGE_DIRECTORY'], images[image_index - 1])
     os.remove(filename)
-    del(images[image_index - 1])
+    del images[image_index - 1]
     set_imagepaths(doc_no, images)
     return Response(json.dumps(images), status=200)
 
