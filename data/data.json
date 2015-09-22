@@ -1,0 +1,6 @@
+{
+  "name": "docstore",
+  "tables": [
+    "documents"
+  ]
+}
