@@ -1,6 +1,7 @@
 from PIL import Image
 from pytesseract import image_to_string
 import re
+import logging
 
 
 image_data = [
@@ -42,8 +43,8 @@ image_data = [
     {
         'bounds': [0.0240384615384615, 0.0285225328009127, 0.192307692307692, 0.0713063320022818],
         'options': [
-            {'pattern': '.*K(1|I|l)5', 'result': 'K15'},
-            {'pattern': '.*K(1|I|l)6', 'result': 'K16'},
+            {'pattern': '.*K(1|I|l)(5|S)', 'result': 'Full Search'},
+            {'pattern': '.*K(1|I|l)6', 'result': 'Search'},
         ]
     },
     {
@@ -63,6 +64,8 @@ image_data = [
 
 def recognise(filename):
     image = Image.open(filename)
+
+    text_log = []
     for item in image_data:
         left = int(image.width * item['bounds'][0])
         top = int(image.height * item['bounds'][1])
@@ -70,10 +73,14 @@ def recognise(filename):
         height = int(image.height * item['bounds'][3])
         cropped = image.crop((left, top, left + width, top + height))
         text = image_to_string(cropped)
+        text_log.append('Block: ' + text)
 
         for option in item['options']:
             match = re.match(option['pattern'], text)
             if match is not None:
+                logging.info("Identified " + option['result'])
                 return option['result']
 
+    for line in text_log:
+        logging.debug(line)
     return "Unknown"
