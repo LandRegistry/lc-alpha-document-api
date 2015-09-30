@@ -98,9 +98,25 @@ class TestImageStore:
         response = self.app.post('/document/9/image', data='some jpeg file', headers={'Content-Type': 'image/jpeg'})
         assert os.path.isfile("/home/vagrant/img9_5.jpeg")
         os.remove("/home/vagrant/img9_5.jpeg")
+
         response = self.app.post('/document/9/image', data='some pdf file', headers={'Content-Type': 'application/pdf'})
         assert os.path.isfile("/home/vagrant/img9_6.pdf")
         os.remove("/home/vagrant/img9_6.pdf")
+
+    def test_header_contains_json(self):
+        # create document api
+        response = self.app.post('/document', data=test_metadata, headers={'Content-Type': 'application/xml'})
+        assert response.status_code == 415
+        # change document api
+        response = self.app.put('/document/41', data=test_metadata, headers={'Content-Type': 'application/xml'})
+        assert response.status_code == 415
+        # add document api
+        response = self.app.post('/document/9/image', data=test_metadata, headers={'Content-Type': 'application/xml'})
+        assert response.status_code == 415
+        # replace image api
+        response = self.app.put('/document/41/image/2', data=test_metadata, headers={'Content-Type': 'application/xml'})
+        assert response.status_code == 415
+
 
 
     @mock.patch('psycopg2.connect', **mock_get_imagepaths_2)
