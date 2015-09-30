@@ -93,6 +93,16 @@ class TestImageStore:
         assert len(data) == 4
         assert data[3] == 'img9_4.tiff'
 
+    @mock.patch('psycopg2.connect', **mock_get_imagepaths)
+    def test_extension_type(self, mok):
+        response = self.app.post('/document/9/image', data='some jpeg file', headers={'Content-Type': 'image/jpeg'})
+        assert os.path.isfile("/home/vagrant/img9_5.jpeg")
+        os.remove("/home/vagrant/img9_5.jpeg")
+        response = self.app.post('/document/9/image', data='some pdf file', headers={'Content-Type': 'application/pdf'})
+        assert os.path.isfile("/home/vagrant/img9_6.pdf")
+        os.remove("/home/vagrant/img9_6.pdf")
+
+
     @mock.patch('psycopg2.connect', **mock_get_imagepaths_2)
     def test_replace_image(self, mock_connect):
         response = self.app.put('/document/17/image/2', data='ZZZZZ', headers={'Content-Type': 'image/tiff'})
@@ -140,3 +150,13 @@ class TestImageStore:
         assert mock_remove.call_args_list[0][0][0] == '/home/vagrant/img17_1.jpeg'
         assert mock_remove.call_args_list[1][0][0] == '/home/vagrant/img17_3.jpeg'
         assert response.status_code == 200
+
+    @mock.patch('psycopg2.connect', **mock_get_imagepaths)
+    def test_recognise_form(self, mock_connect):
+        response = self.app.get('/document/9/image/2/formtype')
+        assert response.status_code == 200
+
+    @mock.patch('psycopg2.connect', **mock_get_imagepaths)
+    def test_recognise_form_no_image(self, mock_connect):
+        response = self.app.get('/document/9/image/7/formtype')
+        assert response.status_code == 404
