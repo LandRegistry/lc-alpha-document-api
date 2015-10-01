@@ -117,8 +117,6 @@ class TestImageStore:
         response = self.app.put('/document/41/image/2', data=test_metadata, headers={'Content-Type': 'application/xml'})
         assert response.status_code == 415
 
-
-
     @mock.patch('psycopg2.connect', **mock_get_imagepaths_2)
     def test_replace_image(self, mock_connect):
         response = self.app.put('/document/17/image/2', data='ZZZZZ', headers={'Content-Type': 'image/tiff'})
