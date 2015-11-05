@@ -306,3 +306,11 @@ def recognise_form(doc_no, image_index):
     formtype = recognise(filename)
 
     return Response(json.dumps({"type": formtype}), status=200, mimetype='application/json')
+
+
+@app.route('/documents', methods=['DELETE'])
+def delete():
+    cursor = connect()
+    cursor.execute("DELETE FROM documents")
+    complete(cursor)
+    return Response(status=200, mimetype='application/json')
