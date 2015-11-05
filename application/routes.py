@@ -166,6 +166,40 @@ def serve_image(image):
     return send_file(sio, mimetype='image/jpeg')
 
 
+@app.route('/documents', methods=['GET'])
+def get_all_documents():
+    cursor = connect()
+    cursor.execute('select id, metadata, image_paths from documents')
+    rows = cursor.fetchall()
+
+    result = []
+    for row in rows:
+        result.append({
+            "id": row[0],
+            "metadata": row[1],
+            "images_paths": row[2]
+        })
+    return Response(json.dumps(result), status=200)
+
+
+@app.route('/documents/bulk', methods=['POST'])
+def bulk_load():
+    data = request.get_json(force=True)
+
+    cursor = connect()
+    for item in data:
+        cursor.execute("INSERT INTO documents (id, metadata, image_paths) "
+                       "VALUES ( %(id)s, %(meta)s, %(image)s )",
+                       {
+                           'id': item['id'],
+                           'meta': json.dumps(item['metadata']),
+                           'image': json.dumps(item['image_paths'])
+                       })
+
+    complete(cursor)
+    return Response(status=200, mimetype='application/json')
+
+
 @app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["GET"])
 def get_image(doc_no, image_index):
     modify = False
