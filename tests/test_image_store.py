@@ -136,14 +136,14 @@ class TestImageStore:
         response = self.app.get('/document/9/image/2')
         sha1 = hashlib.sha1(response.data).hexdigest()
         assert response.status_code == 200
-        assert sha1 == '2bdc21774ffe3ce93e262f896fa8b1877e01d62b'  # use sha1sum <file>
+        assert sha1 == '2c6ccf5a145c7087ef4552ee1da575c3d2354995'  # use sha1sum <file>
 
     @mock.patch('psycopg2.connect', **mock_get_imagepaths)
     def test_retrieve_image_adjust_contrast(self, mock_connect):
         response = self.app.get('/document/9/image/2?contrast=50')
         sha1 = hashlib.sha1(response.data).hexdigest()
         assert response.status_code == 200
-        assert sha1 == 'b20b72a7f9dfcbe1fa19c3a3f4d1db55603463e6'
+        assert sha1 == 'f81ffc095397220b7943f6ac6fd932393e951b94'
 
     @mock.patch('psycopg2.connect', **mock_fetch_empty_array)
     def test_retrieve_image_not_found(self, mock_connect):

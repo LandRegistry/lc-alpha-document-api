@@ -195,6 +195,7 @@ def bulk_load():
                            'meta': json.dumps(item['metadata']),
                            'image': json.dumps(item['image_paths'])
                        })
+    cursor.execute("SELECT setval('documents_id_seq', (SELECT MAX(id) FROM documents)+1);")
 
     complete(cursor)
     return Response(status=200, mimetype='application/json')
