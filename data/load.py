@@ -67,7 +67,8 @@ standard_data = [
     {"metadata": {}, "id": 62, "image_paths": ["img62_1.jpeg"]},
     {"metadata": {}, "id": 63, "image_paths": ["img63_1.jpeg"]},
     {"metadata": {}, "id": 64, "image_paths": ["img64_1.jpeg"]},
-    {"metadata": {}, "id": 65, "image_paths": ["img65_1.jpeg"]}
+    {"metadata": {}, "id": 65, "image_paths": ["img65_1.jpeg"]},
+    {"metadata": {}, "id": 66, "image_paths": ["img66_1.jpeg"]}
 ]
 
 url = os.getenv('DOCUMENT_API_URI', 'http://localhost:5014')
