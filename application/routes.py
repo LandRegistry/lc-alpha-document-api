@@ -5,6 +5,7 @@ import psycopg2.extras
 import json
 import logging
 import os
+import requests
 from io import BytesIO
 from PIL import Image
 from PIL import ImageEnhance
@@ -83,9 +84,41 @@ def get_extension(mimetype):
     return None
 
 
+def check_legacy_health():
+    return requests.get(app.config['LEGACY_ADAPTER_URI'] + '/health')
+
+
+application_dependencies = [
+    {
+        "name": "legacy-adapter",
+        "check": check_legacy_health
+    }
+]
+
+
 @app.route('/', methods=["GET"])
 def index():
     return Response(status=200)
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    result = {
+        'status': 'OK',
+        'dependencies': {}
+    }
+
+    status = 200
+    for dependency in application_dependencies:
+        response = dependency["check"]()
+        if response.status_code != 200:
+            status = 500
+        result['dependencies'][dependency['name']] = str(response.status_code) + ' ' + response.reason
+        data = json.loads(response.content.decode('utf-8'))
+        for key in data['dependencies']:
+            result['dependencies'][key] = data['dependencies'][key]
+
+    return Response(json.dumps(result), status=status, mimetype='application/json')
 
 
 @app.route('/documents', methods=["POST"])
