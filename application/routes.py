@@ -88,7 +88,7 @@ def index():
     return Response(status=200)
 
 
-@app.route('/document', methods=["POST"])
+@app.route('/documents', methods=["POST"])
 def create_documents():
     # create an empty document meta-entry
     if request.headers['Content-Type'] != "application/json":
@@ -110,7 +110,7 @@ def create_documents():
     return Response(json.dumps({"id": doc_id}), status=201)
 
 
-@app.route('/document/<int:doc_no>', methods=["GET"])
+@app.route('/documents/<int:doc_no>', methods=["GET"])
 def get_document(doc_no):
     # retrieve the meta-entry, including URIs of the images
     data = get_metadata(doc_no)
@@ -120,7 +120,7 @@ def get_document(doc_no):
         return Response(json.dumps(data, ensure_ascii=False), status=200)
 
 
-@app.route('/document/<int:doc_no>', methods=["PUT"])
+@app.route('/documents/<int:doc_no>', methods=["PUT"])
 def change_document(doc_no):
     if request.headers['Content-Type'] != "application/json":
         logging.error('Content-Type is not JSON')
@@ -143,7 +143,7 @@ def change_document(doc_no):
     return Response(status=200)
 
 
-@app.route('/document/<int:doc_no>', methods=["DELETE"])
+@app.route('/documents/<int:doc_no>', methods=["DELETE"])
 def delete_document(doc_no):
     images = get_imagepaths(doc_no)
     if images is None:
@@ -182,26 +182,7 @@ def get_all_documents():
     return Response(json.dumps(result), status=200)
 
 
-@app.route('/documents/bulk', methods=['POST'])
-def bulk_load():
-    data = request.get_json(force=True)
-
-    cursor = connect()
-    for item in data:
-        cursor.execute("INSERT INTO documents (id, metadata, image_paths) "
-                       "VALUES ( %(id)s, %(meta)s, %(image)s )",
-                       {
-                           'id': item['id'],
-                           'meta': json.dumps(item['metadata']),
-                           'image': json.dumps(item['image_paths'])
-                       })
-    cursor.execute("SELECT setval('documents_id_seq', (SELECT MAX(id) FROM documents)+1);")
-
-    complete(cursor)
-    return Response(status=200, mimetype='application/json')
-
-
-@app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["GET"])
+@app.route('/documents/<int:doc_no>/images/<int:image_index>', methods=["GET"])
 def get_image(doc_no, image_index):
     modify = False
 
@@ -230,7 +211,7 @@ def get_image(doc_no, image_index):
         return serve_image(adjuster.enhance(contrast))
 
 
-@app.route('/document/<int:doc_no>/image', methods=['POST'])
+@app.route('/documents/<int:doc_no>/images', methods=['POST'])
 def add_image(doc_no):
     # add an image
     if request.headers['Content-Type'] != "image/tiff" and \
@@ -254,7 +235,7 @@ def add_image(doc_no):
     return Response(json.dumps(images), status=201)
 
 
-@app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["PUT"])
+@app.route('/documents/<int:doc_no>/images/<int:image_index>', methods=["PUT"])
 def put_image(doc_no, image_index):
     # replace an image
     if request.headers['Content-Type'] != "image/tiff" and \
@@ -278,7 +259,7 @@ def put_image(doc_no, image_index):
     return Response(json.dumps(images), status=201)
 
 
-@app.route('/document/<int:doc_no>/image/<int:image_index>', methods=["DELETE"])
+@app.route('/documents/<int:doc_no>/images/<int:image_index>', methods=["DELETE"])
 def delete_image(doc_no, image_index):
     # delete an image from the document
     images = get_imagepaths(doc_no)
@@ -292,11 +273,8 @@ def delete_image(doc_no, image_index):
     return Response(json.dumps(images), status=200)
 
 
-@app.route('/document/<int:doc_no>/image/<int:image_index>/formtype', methods=["GET"])
+@app.route('/documents/<int:doc_no>/images/<int:image_index>/formtype', methods=["GET"])
 def recognise_form(doc_no, image_index):
-    print("============")
-    print(os.environ['PATH'])
-    print(os.environ['PATH'])
     images = get_imagepaths(doc_no)
     print(images)
     if images is None or image_index < 1 or image_index > len(images):
@@ -311,7 +289,30 @@ def recognise_form(doc_no, image_index):
 
 @app.route('/documents', methods=['DELETE'])
 def delete():
+    if not app.config['ALLOW_DEV_ROUTES']:
+        return Response(status=403)
     cursor = connect()
     cursor.execute("DELETE FROM documents")
+    complete(cursor)
+    return Response(status=200, mimetype='application/json')
+
+
+@app.route('/documents/bulk', methods=['POST'])
+def bulk_load():
+    if not app.config['ALLOW_DEV_ROUTES']:
+        return Response(status=403)
+
+    data = request.get_json(force=True)
+    cursor = connect()
+    for item in data:
+        cursor.execute("INSERT INTO documents (id, metadata, image_paths) "
+                       "VALUES ( %(id)s, %(meta)s, %(image)s )",
+                       {
+                           'id': item['id'],
+                           'meta': json.dumps(item['metadata']),
+                           'image': json.dumps(item['image_paths'])
+                       })
+    cursor.execute("SELECT setval('documents_id_seq', (SELECT MAX(id) FROM documents)+1);")
+
     complete(cursor)
     return Response(status=200, mimetype='application/json')
