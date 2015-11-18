@@ -1,5 +1,5 @@
 from application import app
-from flask import Response, request, url_for, send_from_directory, send_file
+from flask import Response, request, url_for, send_from_directory, send_file, redirect
 import psycopg2
 import psycopg2.extras
 import json
@@ -84,6 +84,17 @@ def get_extension(mimetype):
     return None
 
 
+def get_mimetype(extension):
+    if extension == '.tiff':
+        return "image/tiff"
+    elif extension == '.jpeg':
+        return 'image/jpeg'
+    elif extension == '.pdf':
+        return 'application/pdf'
+    else:
+        return None
+
+
 def check_legacy_health():
     return requests.get(app.config['LEGACY_ADAPTER_URI'] + '/health')
 
@@ -121,7 +132,7 @@ def health():
     return Response(json.dumps(result), status=status, mimetype='application/json')
 
 
-@app.route('/documents', methods=["POST"])
+@app.route('/applications', methods=["POST"])
 def create_documents():
     # create an empty document meta-entry
     if request.headers['Content-Type'] != "application/json":
@@ -143,7 +154,7 @@ def create_documents():
     return Response(json.dumps({"id": doc_id}), status=201)
 
 
-@app.route('/documents/<int:doc_no>', methods=["GET"])
+@app.route('/applications/<int:doc_no>', methods=["GET"])
 def get_document(doc_no):
     # retrieve the meta-entry, including URIs of the images
     data = get_metadata(doc_no)
@@ -153,7 +164,7 @@ def get_document(doc_no):
         return Response(json.dumps(data, ensure_ascii=False), status=200)
 
 
-@app.route('/documents/<int:doc_no>', methods=["PUT"])
+@app.route('/applications/<int:doc_no>', methods=["PUT"])
 def change_document(doc_no):
     if request.headers['Content-Type'] != "application/json":
         logging.error('Content-Type is not JSON')
@@ -176,7 +187,7 @@ def change_document(doc_no):
     return Response(status=200)
 
 
-@app.route('/documents/<int:doc_no>', methods=["DELETE"])
+@app.route('/applications/<int:doc_no>', methods=["DELETE"])
 def delete_document(doc_no):
     images = get_imagepaths(doc_no)
     if images is None:
@@ -199,7 +210,7 @@ def serve_image(image):
     return send_file(sio, mimetype='image/jpeg')
 
 
-@app.route('/documents', methods=['GET'])
+@app.route('/applications', methods=['GET'])
 def get_all_documents():
     cursor = connect()
     cursor.execute('select id, metadata, image_paths from documents')
@@ -215,7 +226,7 @@ def get_all_documents():
     return Response(json.dumps(result), status=200)
 
 
-@app.route('/documents/<int:doc_no>/images/<int:image_index>', methods=["GET"])
+@app.route('/applications/<int:doc_no>/images/<int:image_index>', methods=["GET"])
 def get_image(doc_no, image_index):
     modify = False
 
@@ -244,7 +255,7 @@ def get_image(doc_no, image_index):
         return serve_image(adjuster.enhance(contrast))
 
 
-@app.route('/documents/<int:doc_no>/images', methods=['POST'])
+@app.route('/applications/<int:doc_no>/images', methods=['POST'])
 def add_image(doc_no):
     # add an image
     if request.headers['Content-Type'] != "image/tiff" and \
@@ -268,7 +279,7 @@ def add_image(doc_no):
     return Response(json.dumps(images), status=201)
 
 
-@app.route('/documents/<int:doc_no>/images/<int:image_index>', methods=["PUT"])
+@app.route('/applications/<int:doc_no>/images/<int:image_index>', methods=["PUT"])
 def put_image(doc_no, image_index):
     # replace an image
     if request.headers['Content-Type'] != "image/tiff" and \
@@ -292,7 +303,7 @@ def put_image(doc_no, image_index):
     return Response(json.dumps(images), status=201)
 
 
-@app.route('/documents/<int:doc_no>/images/<int:image_index>', methods=["DELETE"])
+@app.route('/applications/<int:doc_no>/images/<int:image_index>', methods=["DELETE"])
 def delete_image(doc_no, image_index):
     # delete an image from the document
     images = get_imagepaths(doc_no)
@@ -306,7 +317,7 @@ def delete_image(doc_no, image_index):
     return Response(json.dumps(images), status=200)
 
 
-@app.route('/documents/<int:doc_no>/images/<int:image_index>/formtype', methods=["GET"])
+@app.route('/applications/<int:doc_no>/images/<int:image_index>/formtype', methods=["GET"])
 def recognise_form(doc_no, image_index):
     images = get_imagepaths(doc_no)
     print(images)
@@ -320,7 +331,61 @@ def recognise_form(doc_no, image_index):
     return Response(json.dumps({"type": formtype}), status=200, mimetype='application/json')
 
 
-@app.route('/documents', methods=['DELETE'])
+@app.route('/archive/<date>/<regn_no>/<image_index>', methods=['GET'])
+def get_from_archive(date, regn_no, image_index):
+    uri = "{}/images/{}/{}/{}".format(app.config['LEGACY_ADAPTER_URI'], date, regn_no, image_index)
+    return redirect(uri)
+
+
+@app.route('/archive/<date>/<regn_no>', methods=['POST'])
+def archive_document(date, regn_no):
+    data = request.get_json(force=True)
+    doc_id = data['document_id']
+
+    # need to post each image...
+    images = get_imagepaths(doc_id)
+    img_index = 0
+    responses = []
+    all_ok = True
+    for image in images:
+        img_index += 1
+        fn = os.path.join(app.config['IMAGE_DIRECTORY'], image)
+        file = open(fn, 'rb')
+        mimetype = get_mimetype(os.path.splitext(image)[-1])
+        uri = "{}/images/{}/{}/{}".format(app.config['LEGACY_ADAPTER_URI'], date, regn_no, img_index)
+        response = requests.put(uri, data=file, headers={'Content-Type': mimetype})
+        if response.status_code != 201:
+            all_ok = False
+        responses.append({
+            'uri': uri,
+            'result': response.status_code
+        })
+
+    if all_ok:
+        return Response(json.dumps(responses), status=200, mimetype='application/json')
+    else:
+        return Response(json.dumps(responses), status=500, mimetype='application/json')
+
+
+@app.route('/archive/<date>/<regn_no>/<image_index>', methods=['PUT'])
+def replace_in_archive(date, regn_no, image_index):
+    uri = "{}/images/{}/{}/{}".format(app.config['LEGACY_ADAPTER_URI'], date, regn_no, image_index)
+    header = request.headers['Content-Type']
+    data = request.data
+    response = requests.put(uri, data=data, headers={'Content-Type': header})
+    return Response(status=response.status_code)
+
+
+@app.route('/archive/<date>/<regn_no>/<image_index>', methods=['DELETE'])
+def delete_from_archive(date, regn_no, image_index):
+    uri = "{}/images/{}/{}/{}".format(app.config['LEGACY_ADAPTER_URI'], date, regn_no, image_index)
+    response = requests.delete(uri)
+    return Response(status=response.status_code)
+
+
+# ============== DEV ROUTES ================
+
+@app.route('/applications', methods=['DELETE'])
 def delete():
     if not app.config['ALLOW_DEV_ROUTES']:
         return Response(status=403)
@@ -330,7 +395,7 @@ def delete():
     return Response(status=200, mimetype='application/json')
 
 
-@app.route('/documents/bulk', methods=['POST'])
+@app.route('/applications/bulk', methods=['POST'])
 def bulk_load():
     if not app.config['ALLOW_DEV_ROUTES']:
         return Response(status=403)
