@@ -132,7 +132,7 @@ def health():
     return Response(json.dumps(result), status=status, mimetype='application/json')
 
 
-@app.route('/applications', methods=["POST"])
+@app.route('/forms', methods=["POST"])
 def create_documents():
     # create an empty document meta-entry
     if request.headers['Content-Type'] != "application/json":
@@ -154,7 +154,7 @@ def create_documents():
     return Response(json.dumps({"id": doc_id}), status=201)
 
 
-@app.route('/applications/<int:doc_no>', methods=["GET"])
+@app.route('/forms/<int:doc_no>', methods=["GET"])
 def get_document(doc_no):
     # retrieve the meta-entry, including URIs of the images
     data = get_metadata(doc_no)
@@ -164,7 +164,7 @@ def get_document(doc_no):
         return Response(json.dumps(data, ensure_ascii=False), status=200)
 
 
-@app.route('/applications/<int:doc_no>', methods=["PUT"])
+@app.route('/forms/<int:doc_no>', methods=["PUT"])
 def change_document(doc_no):
     if request.headers['Content-Type'] != "application/json":
         logging.error('Content-Type is not JSON')
@@ -187,7 +187,7 @@ def change_document(doc_no):
     return Response(status=200)
 
 
-@app.route('/applications/<int:doc_no>', methods=["DELETE"])
+@app.route('/forms/<int:doc_no>', methods=["DELETE"])
 def delete_document(doc_no):
     images = get_imagepaths(doc_no)
     if images is None:
@@ -210,7 +210,7 @@ def serve_image(image):
     return send_file(sio, mimetype='image/jpeg')
 
 
-@app.route('/applications', methods=['GET'])
+@app.route('/forms', methods=['GET'])
 def get_all_documents():
     cursor = connect()
     cursor.execute('select id, metadata, image_paths from documents')
@@ -226,7 +226,7 @@ def get_all_documents():
     return Response(json.dumps(result), status=200)
 
 
-@app.route('/applications/<int:doc_no>/images/<int:image_index>', methods=["GET"])
+@app.route('/forms/<int:doc_no>/images/<int:image_index>', methods=["GET"])
 def get_image(doc_no, image_index):
     modify = False
 
@@ -255,7 +255,7 @@ def get_image(doc_no, image_index):
         return serve_image(adjuster.enhance(contrast))
 
 
-@app.route('/applications/<int:doc_no>/images', methods=['POST'])
+@app.route('/forms/<int:doc_no>/images', methods=['POST'])
 def add_image(doc_no):
     # add an image
     if request.headers['Content-Type'] != "image/tiff" and \
@@ -279,7 +279,7 @@ def add_image(doc_no):
     return Response(json.dumps(images), status=201)
 
 
-@app.route('/applications/<int:doc_no>/images/<int:image_index>', methods=["PUT"])
+@app.route('/forms/<int:doc_no>/images/<int:image_index>', methods=["PUT"])
 def put_image(doc_no, image_index):
     # replace an image
     if request.headers['Content-Type'] != "image/tiff" and \
@@ -303,7 +303,7 @@ def put_image(doc_no, image_index):
     return Response(json.dumps(images), status=201)
 
 
-@app.route('/applications/<int:doc_no>/images/<int:image_index>', methods=["DELETE"])
+@app.route('/forms/<int:doc_no>/images/<int:image_index>', methods=["DELETE"])
 def delete_image(doc_no, image_index):
     # delete an image from the document
     images = get_imagepaths(doc_no)
@@ -317,7 +317,7 @@ def delete_image(doc_no, image_index):
     return Response(json.dumps(images), status=200)
 
 
-@app.route('/applications/<int:doc_no>/images/<int:image_index>/formtype', methods=["GET"])
+@app.route('/forms/<int:doc_no>/images/<int:image_index>/formtype', methods=["GET"])
 def recognise_form(doc_no, image_index):
     images = get_imagepaths(doc_no)
     print(images)
