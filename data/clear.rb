@@ -1,6 +1,7 @@
 require 'net/http'
 require 'json'
 
+`rm ~/interim/*.jpeg`
 `rm ~/*.jpeg`
 
 uri = URI(ENV['DOCUMENT_API_URI'] || 'http://localhost:5014')
