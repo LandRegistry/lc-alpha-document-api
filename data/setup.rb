@@ -80,5 +80,5 @@ if response.code != "200"
 end
 
 folder = File.dirname(__FILE__)
-`cp #{folder}/images/*.jpeg ~/`
+`cp #{folder}/images/*.jpeg ~/interim/`
 
