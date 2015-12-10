@@ -71,12 +71,12 @@ standard_data = '[{"metadata": {}, "id": 2, "image_paths": ["img2_1.jpeg"]},' +
 
 uri = URI(ENV['DOCUMENT_API_URI'] || 'http://localhost:5014')
 http = Net::HTTP.new(uri.host, uri.port)
-request = Net::HTTP::Post.new('/documents/bulk')
+request = Net::HTTP::Post.new('/forms/bulk')
 request.body = standard_data
 request["Content-Type"] = "application/json"
 response = http.request(request)
 if response.code != "200"
-    puts "document-api/documents/bulk: #{response.code}"
+    puts "document-api/forms/bulk: #{response.code}"
 end
 
 folder = File.dirname(__FILE__)

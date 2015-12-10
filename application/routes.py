@@ -385,7 +385,7 @@ def delete_from_archive(date, regn_no, image_index):
 
 # ============== DEV ROUTES ================
 
-@app.route('/applications', methods=['DELETE'])
+@app.route('/forms', methods=['DELETE'])
 def delete():
     if not app.config['ALLOW_DEV_ROUTES']:
         return Response(status=403)
@@ -395,7 +395,7 @@ def delete():
     return Response(status=200, mimetype='application/json')
 
 
-@app.route('/applications/bulk', methods=['POST'])
+@app.route('/forms/bulk', methods=['POST'])
 def bulk_load():
     if not app.config['ALLOW_DEV_ROUTES']:
         return Response(status=403)
